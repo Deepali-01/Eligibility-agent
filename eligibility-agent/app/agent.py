@@ -25,6 +25,29 @@ async def evaluate_node(ctx: Context, node_input: str) -> str:
     """Takes ONE combined message containing both the student profile and the
     opportunity description, and evaluates eligibility in a single pass."""
     state = ctx.state
+    # ==== Security & Input Validation ====
+    # 1. Length check – reject inputs longer than 5,000 characters.
+    if len(node_input) > 5_000:
+        state.is_eligible = False
+        state.reasoning = "Input failed security validation"
+        state.combined_input = node_input.strip()
+        return "reject"
+
+    # 2. Simple prompt‑injection detection.
+    #    Look for common injection phrases (case‑insensitive).
+    lowered = node_input.lower()
+    injection_phrases = [
+        "ignore previous instructions",
+        "system prompt",
+        "you are now",
+    ]
+    if any(phrase in lowered for phrase in injection_phrases):
+        state.is_eligible = False
+        state.reasoning = "Input failed security validation"
+        state.combined_input = node_input.strip()
+        return "reject"
+
+    # Input passed validation – proceed as before.
     state.combined_input = node_input.strip()
 
     client = genai.Client(api_key=__import__("os").environ["GEMINI_API_KEY"], vertexai=False)
